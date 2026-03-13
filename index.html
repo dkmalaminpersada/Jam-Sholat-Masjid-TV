@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <script>
+        (function() {
+            /**
+             * SISTEM REDIRECT CERDAS DENGAN SOLUSI TOMBOL BACK
+             */
+            // 1. Cek apakah ada parameter "?forced=desktop" di URL
+            var urlParams = new URLSearchParams(window.location.search);
+            var isForcedDesktop = urlParams.get('forced') === 'desktop';
+
+            // 2. Cek apakah user sudah pernah memilih "Lihat Versi Desktop" di sesi ini
+            var isSessionDesktop = sessionStorage.getItem('viewMode') === 'desktop';
+
+            function checkDeviceAndRedirect() {
+                // Jika user memaksa versi desktop lewat URL atau Session, hentikan redirect
+                if (isForcedDesktop || isSessionDesktop) {
+                    if (isForcedDesktop) sessionStorage.setItem('viewMode', 'desktop');
+                    return;
+                }
+
+                var screenWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+                var isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                var isAndroidTV = /TV|Large Screen|AndroidTV|GoogleTV|SmartTV|DLNA/i.test(navigator.userAgent);
+
+                // Redirect jika layar kecil/mobile DAN bukan TV
+                if ((screenWidth < 992 || isMobileDevice) && !isAndroidTV) {
+                    window.location.href = "mobile/index.html";
+                }
+            }
+
+            // Jalankan deteksi segera
+            checkDeviceAndRedirect();
+
+            // Jalankan ulang jika ukuran browser diubah (untuk simulasi di laptop)
+            window.addEventListener('resize', checkDeviceAndRedirect);
+        })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Display Masjid Al-Amin Persada Residence</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #070f0d;
+            --card-bg: rgba(20, 30, 20, 0.85);
+            --primary: #10b981;
+            --accent: #f39c12;
+            --text: #ffffff;
+            --danger: #ef4444;
+        }
+
+        /* Style untuk Tombol Aktivasi Suara di Awal */
+        #audio-unlock {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .unlock-btn {
+            padding: 20px 40px;
+            font-size: 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Oswald', sans-serif;
+            box-shadow: 0 0 20px var(--primary);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-dark);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            color: var(--text);
+            font-family: 'Roboto', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: background 2s ease-in-out;
+        }
+
+        .bg-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: -1;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, #064e3b, var(--bg-dark));
+            border-bottom: 2px solid var(--primary);
+            padding: 20px 40px;
+            z-index: 10;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .logo-img { height: 100px; width: auto; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); }
+        .masjid-info h1 { font-family: 'Oswald', sans-serif; font-size: 3.5rem; line-height: 0.9; color: white; }
+        .masjid-info p { font-size: 1.2rem; color: var(--accent); font-weight: 700; }
+
+        .next-sholat-box {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 30px;
+            border-radius: 15px;
+            border: 2px solid var(--accent);
+            text-align: center;
+            min-width: 280px;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.2; }
+            100% { opacity: 1; }
+        }
+        .blink { animation: blink 1s infinite; color: var(--danger) !important; }
+
+        #next-name { font-size: 1rem; font-weight: bold; color: var(--accent); }
+        #countdown-timer { font-size: 3rem; font-family: 'Oswald', sans-serif; }
+
+        #iqomah-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #064e3b, #070f0d);
+            z-index: 1000;
+            display: none; 
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .iqomah-title { font-family: 'Oswald', sans-serif; font-size: 5rem; color: var(--accent); margin-bottom: 20px; }
+        .iqomah-timer { font-family: 'Oswald', sans-serif; font-size: 15rem; font-weight: 700; color: white; line-height: 1; }
+        .iqomah-sub { font-size: 2.5rem; color: var(--primary); margin-top: 20px; font-weight: bold; }
+
+        .clock-area { text-align: right; min-width: 300px; }
+        #live-clock { font-size: 5.5rem; font-weight: 700; line-height: 1; margin-bottom: 5px; }
+        #live-date { font-size: 1.4rem; color: var(--primary); font-weight: bold; }
+        #hijri-date { font-size: 1.4rem; color: var(--accent); margin-top: 5px; font-weight: bold; }
+
+        main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 10px 30px;
+            z-index: 10;
+            width: 100%;
+        }
+
+        .sholat-card {
+            flex: 1;
+            background: var(--card-bg);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 30px 5px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sholat-card.active {
+            border: 3px solid var(--accent);
+            background: rgba(16, 185, 129, 0.2);
+            transform: scale(1.05);
+        }
+
+        .sholat-card h2 { font-size: 1.8rem; margin-bottom: 15px; color: rgba(255,255,255,0.4); font-family: 'Oswald', sans-serif; }
+        .sholat-card.active h2 { color: var(--accent); }
+        .sholat-card .time { font-size: 3.5rem; font-weight: 700; }
+
+        footer {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 10px 0;
+            font-size: 2rem;
+            border-top: 4px solid var(--primary);
+            z-index: 10;
+        }
+
+        #simulator-panel {
+            position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.8);
+            padding: 10px; border-radius: 10px; z-index: 2000; display: flex; gap: 10px;
+            opacity: 0.1; transition: opacity 0.3s;
+        }
+        #simulator-panel:hover { opacity: 1; }
+        .sim-btn { padding: 5px 10px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <div id="audio-unlock">
+        <button class="unlock-btn" onclick="startSystem()">AKTIFKAN DISPLAY & SUARA</button>
+        <p style="margin-top: 15px; color: #aaa;">Klik untuk memulai suara dan sistem background otomatis</p>
+    </div>
+
+    <div class="bg-overlay" id="overlay"></div>
+
+    <div id="simulator-panel">
+        <button class="sim-btn" onclick="simulatePhase('normal')">Normal</button>
+        <button class="sim-btn" onclick="simulatePhase('adzan')">Tes Adzan (4m)</button>
+        <button class="sim-btn" onclick="simulatePhase('iqomah')">Tes Iqomah (10m)</button>
+    </div>
+
+    <div id="iqomah-modal">
+        <div class="iqomah-title">MENUJU IQOMAH</div>
+        <div class="iqomah-timer" id="iqomah-countdown">10:00</div>
+        <div class="iqomah-sub">Luruskan dan Rapatkan Shaf</div>
+    </div>
+
+    <header>
+        <div class="header-left">
+            <img src="logo_masjid_al-amin.png" alt="Logo" class="logo-img">
+            <div class="masjid-info">
+                <h1>AL-AMIN</h1>
+                <p>PERSADA RESIDENCE</p>
+            </div>
+        </div>
+
+        <div class="next-sholat-box" id="next-sholat-box">
+            <div id="next-name">MEMUAT...</div>
+            <div id="countdown-timer">00:00:00</div>
+        </div>
+
+        <div class="clock-area">
+            <div id="live-clock">00:00</div>
+            <div id="live-date">...</div>
+            <div id="hijri-date">...</div>
+        </div>
+    </header>
+
+    <main id="prayer-display"></main>
+
+    <footer>
+        <marquee scrollamount="8">
+            SELAMAT DATANG DI MASJID AL AMIN PERSADA RESIDENCE • Mari Luruskan dan Rapatkan Shaf • Mohon Nonaktifkan Suara Handphone Selama Di Dalam Masjid • Salurkan Infaq & Shadaqah Terbaik Anda Melalui Kotak Amal Yang Tersedia / Transfer ke BCA Syariah 0146000070 a.n DKM Al-Amin Persada • Jazakumullah Khairan Katsiran.
+        </marquee>
+    </footer>
+
+    <script>
+        let jadwalHariIni = {};
+        let debugMode = null;
+        let debugStartTime = null;
+        let audioContext = null;
+        let hasBeepedAdzan = false;
+        let hasBeepedIqomah = false;
+
+        function startSystem() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            document.getElementById('audio-unlock').style.display = 'none';
+            fetchJadwal();
+        }
+
+        function playBeep(duration = 3000) {
+            if (!audioContext) return;
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(880, audioContext.currentTime);
+            gain.gain.setValueAtTime(0.5, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + (duration/1000));
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.start();
+            osc.stop(audioContext.currentTime + (duration/1000));
+        }
+
+        function getHijriDate() {
+            const today = new Date();
+            let day = today.getDate(), month = today.getMonth() + 1, year = today.getFullYear();
+            let correction = 2; 
+            let m = month, y = year;
+            if (m < 3) { y -= 1; m += 12; }
+            let d = Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + day - 1524.5;
+            let b = d > 2299160 ? (2 - Math.floor(y/100) + Math.floor(Math.floor(y/100)/4)) : 0;
+            let jd = Math.floor(d + b);
+            let bb = jd - 1948440 + correction;
+            let i = Math.floor((bb - 1) / 10631), r = bb - 10631 * i;
+            let j = Math.floor((r - 1) / 354); if (j > 29) j = 29;
+            let rr = r - 354 * j - Math.floor((3 + 11 * j) / 30);
+            let h_month = Math.floor((rr + 28.5) / 29.5); if (h_month > 12) h_month = 12;
+            let h_day = rr - Math.floor(29.5 * h_month - 28.5);
+            const hjM = ["Muharram", "Safar", "Rabi'ul Awal", "Rabi'ul Akhir", "Jumadil Awal", "Jumadil Akhir", "Rajab", "Sya'ban", "Ramadhan", "Syawal", "Dzulqa'dah", "Dzulhijjah"];
+            return `${h_day} ${hjM[h_month - 1]} ${30 * i + j + 1} H`;
+        }
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('live-clock').innerText = now.toLocaleTimeString('id-ID', {hour12: false, hour: '2-digit', minute: '2-digit'});
+            document.getElementById('live-date').innerText = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            document.getElementById('hijri-date').innerText = getHijriDate();
+            
+            if (Object.keys(jadwalHariIni).length > 0) {
+                calculateCountdown();
+                updateBackground();
+            }
+        }
+
+        async function fetchJadwal() {
+            try {
+                const response = await fetch('https://api.myquran.com/v2/sholat/jadwal/1204/' + new Date().toISOString().slice(0, 10).replace(/-/g, '/'));
+                const data = await response.json();
+                jadwalHariIni = data.data.jadwal;
+                renderUI();
+            } catch (err) { console.error("Gagal API"); }
+        }
+
+        function renderUI() {
+            const list = [{n:'Subuh',t:jadwalHariIni.subuh},{n:'Dzuhur',t:jadwalHariIni.dzuhur},{n:'Ashar',t:jadwalHariIni.ashar},{n:'Maghrib',t:jadwalHariIni.maghrib},{n:'Isya',t:jadwalHariIni.isya}];
+            document.getElementById('prayer-display').innerHTML = list.map(item => `
+                <div class="sholat-card" id="card-${item.n.toLowerCase()}">
+                    <h2>${item.n.toUpperCase()}</h2>
+                    <div class="time">${item.t}</div>
+                </div>
+            `).join('');
+        }
+
+        function simulatePhase(phase) {
+            debugMode = phase;
+            debugStartTime = new Date().getTime();
+            hasBeepedAdzan = false;
+            hasBeepedIqomah = false;
+            if (phase === 'normal') debugMode = null;
+            calculateCountdown();
+        }
+
+        function calculateCountdown() {
+            let now = new Date();
+            const list = [{n:'Subuh', t:jadwalHariIni.subuh},{n:'Dzuhur', t:jadwalHariIni.dzuhur},{n:'Ashar', t:jadwalHariIni.ashar},{n:'Maghrib', t:jadwalHariIni.maghrib},{n:'Isya', t:jadwalHariIni.isya}];
+            const modal = document.getElementById('iqomah-modal'), iqT = document.getElementById('iqomah-countdown'), timerT = document.getElementById('countdown-timer'), box = document.getElementById('next-sholat-box');
+            
+            if (debugMode === 'adzan') {
+                if(!hasBeepedAdzan) { playBeep(); hasBeepedAdzan = true; }
+                let rem = 240000 - (new Date().getTime() - debugStartTime);
+                if (rem <= 0) { debugMode = 'iqomah'; debugStartTime = new Date().getTime(); hasBeepedIqomah = false; return; }
+                timerT.innerText = `${Math.floor(rem/60000).toString().padStart(2,'0')}:${Math.floor((rem%60000)/1000).toString().padStart(2,'0')}`;
+                document.getElementById('next-name').innerText = "SAATNYA ADZAN";
+                timerT.classList.add('blink'); return;
+            }
+
+            if (debugMode === 'iqomah') {
+                if(!hasBeepedIqomah) { playBeep(); hasBeepedIqomah = true; }
+                modal.style.display = "flex";
+                let rem = 600000 - (new Date().getTime() - debugStartTime);
+                if (rem <= 0) { debugMode = null; modal.style.display = "none"; return; }
+                iqT.innerText = `${Math.floor(rem/60000).toString().padStart(2,'0')}:${Math.floor((rem%60000)/1000).toString().padStart(2,'0')}`;
+                return;
+            }
+
+            for (let s of list) {
+                const [h, m] = s.t.split(':');
+                const tS = new Date(); tS.setHours(h, m, 0);
+                const bA = new Date(tS.getTime() + 240000), bI = new Date(bA.getTime() + 600000);
+
+                if (now >= tS && now < bA) {
+                    if(!hasBeepedAdzan) { playBeep(); hasBeepedAdzan = true; }
+                    modal.style.display = "none"; document.getElementById('next-name').innerText = "SAATNYA ADZAN";
+                    let d = bA - now; timerT.innerText = `${Math.floor(d/60000).toString().padStart(2,'0')}:${Math.floor((d%60000)/1000).toString().padStart(2,'0')}`;
+                    timerT.classList.add('blink'); box.style.borderColor = "var(--danger)"; return;
+                }
+                if (now >= bA && now < bI) {
+                    if(!hasBeepedIqomah) { playBeep(); hasBeepedIqomah = true; }
+                    modal.style.display = "flex"; let d = bI - now;
+                    iqT.innerText = `${Math.floor(d/60000).toString().padStart(2,'0')}:${Math.floor((d%60000)/1000).toString().padStart(2,'0')}`; return;
+                }
+            }
+
+            hasBeepedAdzan = hasBeepedIqomah = false;
+            modal.style.display = "none"; timerT.classList.remove('blink'); box.style.borderColor = "var(--accent)";
+            let next = list.find(s => { const [h,m]=s.t.split(':'); const t=new Date(); t.setHours(h,m,0); return t > now; });
+            if (!next) { 
+                const [h,m]=list[0].t.split(':'); 
+                next={n: "Subuh Besok", t: new Date(new Date().setDate(now.getDate()+1)).setHours(h,m,0)}; 
+            } else { 
+                const [h,m]=next.t.split(':'); 
+                next.t = new Date().setHours(h,m,0); 
+            }
+
+            let diff = next.t - now;
+            timerT.innerText = `${Math.floor(diff/3600000).toString().padStart(2,'0')}:${Math.floor((diff%3600000)/60000).toString().padStart(2,'0')}:${Math.floor((diff%60000)/1000).toString().padStart(2,'0')}`;
+            document.getElementById('next-name').innerText = `MENUJU ${next.n.toUpperCase()}`;
+            document.querySelectorAll('.sholat-card').forEach(c => c.classList.remove('active'));
+            const act = document.getElementById(`card-${(next.n==="Subuh Besok"?"subuh":next.n).toLowerCase()}`);
+            if(act) act.classList.add('active');
+        }
+
+        function updateBackground() {
+            const hour = new Date().getHours();
+            const bgs = { subuh: "mekah-subuh.jpg", siang: "mekah-siang.jpg", sore: "mekah-sore.jpg", malam: "mekah-malam.jpg" };
+            let img = bgs.malam;
+            if (hour >= 4 && hour < 6) img = bgs.subuh;
+            else if (hour >= 6 && hour < 15) img = bgs.siang;
+            else if (hour >= 15 && hour < 18) img = bgs.sore;
+            document.body.style.backgroundImage = `url('${img}')`;
+        }
+
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>
